@@ -57,6 +57,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     };
 
     // --- API ROUTING ---
+    if (path.includes('/api/health')) {
+      const dbStatus = env.DB ? 'Connected' : 'Missing Binding';
+      return Response.json({ status: 'ok', database: dbStatus, timestamp: new Date().toISOString() }, { headers: corsHeaders });
+    }
+
     if (path.includes('/api/me')) {
       const user = await getAuthUser();
       return Response.json({ user }, { headers: corsHeaders });

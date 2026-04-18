@@ -249,6 +249,7 @@ export const App: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [appError, setAppError] = useState<string | null>(null);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'active' | 'error'>('checking');
   const [targetLang, setTargetLang] = useState('auto');
   const [renderingProgress, setRenderingProgress] = useState<{current: number, total: number} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -261,12 +262,25 @@ export const App: React.FC = () => {
 
   // Check for auto-login (Cloudflare Access)
   useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const health = await apiFetch('/api/health');
+        if (health && health.status === 'ok') setBackendStatus('active');
+        else setBackendStatus('error');
+      } catch (e) {
+        setBackendStatus('error');
+      }
+    };
+    checkHealth();
+  }, []);
+
+  useEffect(() => {
     const checkUser = async () => {
       try {
-        const { user: apiUser } = await apiFetch('/api/me');
-        if (apiUser) {
-          localStorage.setItem('user', JSON.stringify(apiUser));
-          setUser(apiUser);
+        const resp = await apiFetch('/api/me');
+        if (resp && resp.user) {
+          localStorage.setItem('user', JSON.stringify(resp.user));
+          setUser(resp.user);
         }
       } catch (e) {
         console.log("No auto-login session found");
@@ -667,7 +681,10 @@ export const App: React.FC = () => {
           <h2 className="font-black tracking-tight flex items-center gap-2">
             <i className="fa-solid fa-layer-group text-blue-400"></i> BATCHES
           </h2>
-          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-white"><i className="fa-solid fa-xmark"></i></button>
+          <div className="flex items-center gap-3">
+             <div title={backendStatus === 'active' ? 'Backend Connected' : 'Backend Offline'} className={`w-2 h-2 rounded-full ${backendStatus === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : backendStatus === 'checking' ? 'bg-amber-500 animate-pulse' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`}></div>
+             <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-white"><i className="fa-solid fa-xmark"></i></button>
+          </div>
         </div>
         <div className="p-2">
           <button onClick={handleNewChat} className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-semibold border border-white/10 transition-colors flex items-center justify-center gap-2">

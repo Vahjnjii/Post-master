@@ -247,6 +247,7 @@ export const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [appError, setAppError] = useState<string | null>(null);
   const [targetLang, setTargetLang] = useState('auto');
   const [renderingProgress, setRenderingProgress] = useState<{current: number, total: number} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -470,8 +471,9 @@ export const App: React.FC = () => {
           })
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chat Error:", error);
+      setAppError(error.message || "Something went wrong during generation. Check your keys.");
     } finally {
       setIsTyping(false);
       setRenderingProgress(null);
@@ -616,6 +618,26 @@ export const App: React.FC = () => {
 
   return (
     <div className="h-[100dvh] w-full bg-black text-white flex overflow-hidden font-sans relative">
+      {/* GLOBAL ERROR NOTIFICATION */}
+      <AnimatePresence>
+        {appError && (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="fixed top-6 left-1/2 -translate-x-1/2 z-[1000] w-[90%] max-w-md">
+            <div className="bg-red-500 text-white p-4 rounded-2xl shadow-2xl overflow-hidden relative flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <i className="fa-solid fa-circle-exclamation text-xl"></i>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-black tracking-widest opacity-80">Generation Error</span>
+                  <p className="text-sm font-bold leading-tight">{appError}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setIsSettingsOpen(true); setAppError(null); }} className="px-3 py-1.5 bg-black/20 hover:bg-black/30 rounded-lg text-[10px] font-black uppercase transition-colors">Settings</button>
+                <button onClick={() => setAppError(null)} className="p-2 hover:bg-black/20 rounded-full transition-colors"><i className="fa-solid fa-xmark"></i></button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* SIDEBAR */}
       <div className={`absolute md:relative z-50 h-full bg-slate-950 border-r border-white/10 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full md:translate-x-0'}`}>
         <div className="p-4 border-b border-white/10 flex items-center justify-between">

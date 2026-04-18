@@ -16,16 +16,21 @@ When you move this to Cloudflare, you don't need a manual "Login" button if you 
 -   **Database**: SQLite/D1 ready schema for multi-user isolation.
 -   **Key Management**: Multi-key Gemini rotation (managed in User Settings).
 
-## 🛠️ Transfer to Cloudflare Pages
+## 🛠️ Transfer to Cloudflare Pages (Updated)
 1.  **Push to GitHub**: Upload this entire folder.
 2.  **Create Pages Project**: Connect your GitHub repo to Cloudflare Pages.
-3.  **Environment Variables**:
+3.  **Build Settings (CRITICAL)**:
+    *   **Framework Preset**: Vite
+    *   **Build command**: `npm run build`
+    *   **Build output directory**: `dist`
+4.  **Environment Variables (Cloudflare Dashboard)**:
     *   `JWT_SECRET`: Generate a random 64-character string.
     *   `GOOGLE_CLIENT_ID`: From Google Cloud Console.
     *   `GOOGLE_CLIENT_SECRET`: From Google Cloud Console.
     *   `APP_URL`: Your `.pages.dev` URL.
-4.  **D1 Activation**:
+5.  **D1 Activation**:
     *   Create a D1 database named `post_cloud_db`.
+    *   Bind it to the project in **Settings > Functions > D1 Database Bindings**. Name the binding `DB`.
     *   Run the schema found in `server/db.ts` using the Cloudflare console.
 5.  **Build Command**: `npm run build`
 6.  **Root Directory**: `/`

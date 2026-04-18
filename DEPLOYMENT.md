@@ -19,8 +19,9 @@ When you move this to Cloudflare, you don't need a manual "Login" button if you 
 ## 🛠️ Transfer to Cloudflare Pages (Updated)
 1.  **Push to GitHub**: Upload this entire folder.
 2.  **Create Pages Project**: Connect your GitHub repo to Cloudflare Pages.
-3.  **Build Settings (CRITICAL)**:
-    *   **Framework Preset**: Vite
+3.  **Build Settings (MANDATORY in UI)**:
+    *   **Since Cloudflare Pages does not support the [build] command inside wrangler.toml yet, you MUST set these in the Cloudflare Dashboard**:
+    *   **Framework Preset**: `Vite` (or `None` if Vite is missing)
     *   **Build command**: `npm run build`
     *   **Build output directory**: `dist`
 4.  **Environment Variables (Cloudflare Dashboard)**:

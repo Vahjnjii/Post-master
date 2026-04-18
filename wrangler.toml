@@ -2,11 +2,8 @@
 
 name = "post-cloud-app"
 pages_build_output_dir = "dist"
+compatibility_date = "2024-04-01"
 compatibility_flags = [ "nodejs_compat" ]
-
-[build]
-command = "npm run build"
-upload_dir = "dist"
 
 [env.production]
 # Bindings and variables MUST be inside the environment block for inheritance

@@ -239,7 +239,7 @@ export const App: React.FC = () => {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
   });
-  const [isAuthReady, setIsAuthReady] = useState(true);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chats, setChats] = useState<ChatSession[]>([]);
@@ -256,6 +256,41 @@ export const App: React.FC = () => {
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
   const [renderingPost, setRenderingPost] = useState<{index: number, post: FormattedPost} | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Check for auto-login (Cloudflare Access)
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const { user: apiUser } = await apiFetch('/api/me');
+        if (apiUser) {
+          localStorage.setItem('user', JSON.stringify(apiUser));
+          setUser(apiUser);
+        }
+      } catch (e) {
+        console.log("No auto-login session found");
+      } finally {
+        setIsAuthReady(true);
+      }
+    };
+    checkUser();
+  }, []);
+
+  // Auth Listener for Popup
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Validate origin
+      if (!event.origin.endsWith('.run.app') && !event.origin.includes('localhost')) return;
+      
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        const { token, user: newUser } = event.data;
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(newUser));
+        setUser(newUser);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   // Settings & API Keys
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -517,25 +552,24 @@ export const App: React.FC = () => {
   };
 
   const handleSignIn = async () => {
-    // FOR PREVIEW: Mock Login
-    // FOR CLOUDFLARE: Replace with real OAuth login window as per oauth-integration skill
-    const mockUser = {
-      uid: 'user_' + Math.random().toString(36).substr(2, 9),
-      email: 'demo@example.com',
-      displayName: 'Cloudflare User',
-      photoURL: `https://picsum.photos/seed/${Math.random()}/200`
-    };
-
     try {
-      const data = await apiFetch('/api/auth/mock', {
-        method: 'POST',
-        body: JSON.stringify(mockUser)
-      });
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      setUser(data.user);
+      const { url } = await apiFetch('/api/auth/google/url');
+      const width = 500;
+      const height = 600;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      
+      const authWindow = window.open(
+        url,
+        'google_oauth',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+
+      if (!authWindow) {
+        setAuthError("Popup blocked. Please allow popups for this site.");
+      }
     } catch (err) {
-      setAuthError("Failed to connect to backend. Ensure server is running.");
+      setAuthError("Failed to initiate Google Login. Check configuration.");
     }
   };
 
@@ -546,7 +580,17 @@ export const App: React.FC = () => {
     setChats([]);
     setMessages([]);
     setCurrentChatId(null);
+    // If using Cloudflare Access, logout typically happens at the Cloudflare layer
+    // but clearing local state will bring them back to the login screen or re-auth prompt
   };
+
+  if (!isAuthReady) {
+    return (
+      <div className="h-[100dvh] bg-black flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -560,7 +604,7 @@ export const App: React.FC = () => {
             <p className="text-slate-400 text-lg">Cloudflare-Powered Bulk Generation</p>
           </div>
           <button onClick={handleSignIn} className="w-full py-5 bg-white text-black font-black text-xl rounded-2xl hover:bg-slate-100 transition-all flex items-center justify-center gap-4 shadow-xl">
-            <i className="fa-solid fa-bolt"></i> GET STARTED (DEMO)
+            <i className="fa-brands fa-google"></i> SIGN IN WITH GOOGLE
           </button>
           {authError && <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 text-xs font-bold">{authError}</div>}
         </motion.div>

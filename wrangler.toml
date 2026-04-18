@@ -1,0 +1,21 @@
+# Cloudflare Wrangler Configuration
+# This file defines how your app deploys to Cloudflare Pages/Workers
+
+name = "post-cloud-app"
+pages_build_output_dir = "dist"
+
+[vars]
+# Add your environment variables here for production
+# These should match what you set in the Cloudflare Dashboard
+APP_URL = "https://your-app.pages.dev"
+JWT_SECRET = "REPLACE_WITH_SECURE_RANDOM_STRING"
+GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
+
+[[d1_databases]]
+binding = "DB" # This is used by Cloudflare D1
+database_name = "post_cloud_db"
+database_id = "PASTE_YOUR_D1_DATABASE_ID_HERE"
+
+[env.production]
+# Specific production settings
+NODE_VERSION = "20"

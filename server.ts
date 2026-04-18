@@ -5,10 +5,17 @@ import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 import db from './server/db';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
+import axios from 'axios';
 
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+
+const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
 const PORT = 3000;
 
 async function startServer() {
@@ -16,32 +23,110 @@ async function startServer() {
   app.use(cors());
   app.use(express.json({ limit: '50mb' }));
 
-  // --- MOCK AUTH FOR DEMO (Replace with real OAuth for Cloudflare) ---
-  // On Cloudflare, you'd use a Library like @auth/core
-  app.post('/api/auth/mock', (req, res) => {
-    const { email, displayName, photoURL, uid } = req.body;
-    
-    const stmt = db.prepare('INSERT OR REPLACE INTO users (uid, email, displayName, photoURL) VALUES (?, ?, ?, ?)');
-    stmt.run(uid, email, displayName, photoURL);
-
-    const token = jwt.sign({ uid, email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { uid, email, displayName, photoURL } });
+  // --- GOOGLE OAUTH ROUTES ---
+  app.get('/api/auth/google/url', (req, res) => {
+    if (!GOOGLE_CLIENT_ID) {
+      return res.status(500).json({ error: 'GOOGLE_CLIENT_ID not configured' });
+    }
+    const redirectUri = `${APP_URL}/auth/google/callback`;
+    const authorizeUrl = client.generateAuthUrl({
+      access_type: 'offline',
+      scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'],
+      redirect_uri: redirectUri,
+    });
+    res.json({ url: authorizeUrl });
   });
 
-  // Auth Middleware
-  const authenticate = (req: any, res: any, next: any) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'No token' });
-    
-    const token = authHeader.split(' ')[1];
+  app.get(['/auth/google/callback', '/auth/google/callback/'], async (req, res) => {
+    const code = req.query.code as string;
+    if (!code) return res.status(400).send('No code provided');
+
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
-      req.user = decoded;
-      next();
-    } catch (e) {
-      res.status(401).json({ error: 'Invalid token' });
+      const redirectUri = `${APP_URL}/auth/google/callback`;
+      const { tokens } = await client.getToken({
+        code,
+        redirect_uri: redirectUri,
+      });
+      
+      const ticket = await client.verifyIdToken({
+        idToken: tokens.id_token!,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      
+      if (!payload) throw new Error('No payload from Google');
+
+      const { sub: uid, email, name: displayName, picture: photoURL } = payload;
+      
+      // Upsert user
+      const stmt = db.prepare('INSERT OR REPLACE INTO users (uid, email, displayName, photoURL) VALUES (?, ?, ?, ?)');
+      stmt.run(uid, email, displayName, photoURL);
+
+      const sessionToken = jwt.sign({ uid, email, displayName, photoURL }, JWT_SECRET, { expiresIn: '7d' });
+
+      // Send message to opener window and close
+      res.send(`
+        <html>
+          <body>
+            <script>
+              window.opener.postMessage({ 
+                type: 'OAUTH_AUTH_SUCCESS', 
+                token: '${sessionToken}',
+                user: ${JSON.stringify({ uid, email, displayName, photoURL })}
+              }, '*');
+              window.close();
+            </script>
+            <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+              <h2>Login Successful!</h2>
+              <p>Closing window...</p>
+            </div>
+          </body>
+        </html>
+      `);
+    } catch (e: any) {
+      console.error('OAuth error:', e);
+      res.status(500).send(`Authentication failed: ${e.message}`);
     }
+  });
+
+  // --- AUTH MIDDLEWARE (Optimized for Cloudflare) ---
+  const authenticate = (req: any, res: any, next: any) => {
+    // 1. CLOUDFLARE ACCESS (The "Optimized" Packet Way)
+    // When you link Google to Cloudflare Zero Trust, these headers are injected automatically.
+    const cfUserEmail = req.headers['cf-access-authenticated-user-email'];
+    const cfUserId = req.headers['cf-access-authenticated-user-id'] || req.headers['cf-access-user-id'];
+
+    if (cfUserEmail) {
+      let user = db.prepare('SELECT * FROM users WHERE email = ?').get(cfUserEmail) as any;
+      if (!user) {
+        const uid = cfUserId ? `cf_${cfUserId}` : `cf_${Buffer.from(cfUserEmail as string).toString('hex').substring(0, 12)}`;
+        db.prepare('INSERT INTO users (uid, email, displayName) VALUES (?, ?, ?)')
+          .run(uid, cfUserEmail, (cfUserEmail as string).split('@')[0]);
+        user = { uid, email: cfUserEmail, displayName: (cfUserEmail as string).split('@')[0] };
+      }
+      req.user = user;
+      return next();
+    }
+
+    // 2. JWT FALLBACK (Manual Google Login)
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        req.user = decoded;
+        return next();
+      } catch (e) {
+        return res.status(401).json({ error: 'Invalid Session' });
+      }
+    }
+
+    res.status(401).json({ error: 'Authentication Required' });
   };
+
+  app.get('/api/me', authenticate, (req: any, res) => {
+    res.json({ user: req.user });
+  });
 
   // --- CHATS API ---
   app.get('/api/chats', authenticate, (req: any, res) => {

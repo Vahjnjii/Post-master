@@ -6,10 +6,14 @@ This application has been optimized to run on **Cloudflare Pages** with deep int
 This app is built to be "Hands-Off." The backend handles the Google Login complexity so you don't have to.
 
 ### 🔑 The "Login Information" (Google OAuth)
-For the "Sign in with Google" button to work, you **must** get your credentials from the **[Google Cloud Console](https://console.cloud.google.com/apis/credentials)**:
-1.  **Create OAuth Client ID**: Select "Web Application."
-2.  **Authorized Redirect URIs**: Add `https://your-app.pages.dev/auth/google/callback`.
-3.  **Copy the ID & Secret**: Paste them into the Cloudflare Dashboard environment variables.
+Your app is now configured for **`https://post-master.pages.dev`**.
+1.  **Google Cloud Console Settings**:
+    *   **Authorized JavaScript Origins**: `https://post-master.pages.dev`
+    *   **Authorized Redirect URIs**: `https://post-master.pages.dev/auth/google/callback`
+2.  **Paste these into Cloudflare Dashboard** (Settings > Variables):
+    *   `GOOGLE_CLIENT_ID`: `401203813329-l5v8i898rk5me7iual038q5h7k03dqj7.apps.googleusercontent.com`
+    *   `GOOGLE_CLIENT_SECRET`: (Paste your **GOCSPX-...** secret here as a **SECRET**).
+    *   `APP_URL`: `https://post-master.pages.dev`
 
 ---
 

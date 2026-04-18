@@ -240,6 +240,7 @@ export const App: React.FC = () => {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
   });
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -264,6 +265,11 @@ export const App: React.FC = () => {
   useEffect(() => {
     const checkHealth = async () => {
       try {
+        const config = await apiFetch('/api/config');
+        if (config && config.googleClientId) {
+          setGoogleClientId(config.googleClientId);
+        }
+        
         const health = await apiFetch('/api/health');
         if (health && health.status === 'ok') setBackendStatus('active');
         else setBackendStatus('error');
@@ -295,7 +301,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       // Validate origin
-      if (!event.origin.endsWith('.run.app') && !event.origin.includes('localhost')) return;
+      if (!event.origin.endsWith('.run.app') && !event.origin.includes('localhost') && !event.origin.includes('pages.dev')) return;
       
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         const { token, user: newUser } = event.data;
@@ -610,7 +616,7 @@ export const App: React.FC = () => {
   }
 
   if (!user) {
-    const isConfigMissing = !import.meta.env.VITE_GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE');
+    const isConfigMissing = (!import.meta.env.VITE_GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE')) && (!googleClientId || googleClientId.includes('YOUR_GOOGLE') || googleClientId === '');
 
     return (
       <div className="h-[100dvh] bg-black flex flex-col items-center justify-center p-6 bg-gradient-to-b from-slate-900 to-black">
@@ -640,7 +646,7 @@ export const App: React.FC = () => {
                     <i className="fa-solid fa-triangle-exclamation"></i> Backend Not Configured
                   </p>
                   <p className="text-slate-400 text-[11px] leading-relaxed">
-                    Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" className="text-blue-400 underline">Google Console</a> and add your <code className="text-white bg-white/5 px-1 rounded">VITE_GOOGLE_CLIENT_ID</code> to enable login.
+                    Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" className="text-blue-400 underline">Google Console</a> and add <strong>GOOGLE_CLIENT_ID</strong> to the <b>Secrets menu</b> (top right gear ⚙️) or Cloudflare Variables.
                   </p>
                 </div>
                 

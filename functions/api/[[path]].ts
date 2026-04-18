@@ -57,6 +57,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     };
 
     // --- API ROUTING ---
+    if (path.includes('/api/config')) {
+      return Response.json({ 
+        googleClientId: env.GOOGLE_CLIENT_ID || '', 
+        isConfigured: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET)
+      }, { headers: corsHeaders });
+    }
+
     if (path.includes('/api/health')) {
       const dbStatus = env.DB ? 'Connected' : 'Missing Binding';
       return Response.json({ status: 'ok', database: dbStatus, timestamp: new Date().toISOString() }, { headers: corsHeaders });

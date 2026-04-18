@@ -8,8 +8,3 @@ compatibility_flags = [ "nodejs_compat" ]
 [env.production]
 # Bindings and variables MUST be inside the environment block for inheritance
 vars = { APP_URL = "https://your-app.pages.dev", JWT_SECRET = "post_cloud_v1_8e4f2a9c3d1b7a6e5d0c", GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID" }
-
-[[env.production.d1_databases]]
-binding = "DB"
-database_name = "post_cloud_db"
-database_id = "PASTE_YOUR_D1_DATABASE_ID_HERE"

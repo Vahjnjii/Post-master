@@ -3,36 +3,37 @@
 This application has been optimized to run on **Cloudflare Pages** with deep integration for **Google Identity**.
 
 ## 🛡️ Identity & Zero Trust (The "Optimized" Way)
-The backend is programmed to automatically detect and trust **Cloudflare Access** headers.
-When you move this to Cloudflare, you don't need a manual "Login" button if you enable **Zero Trust**:
+This app is built to be "Hands-Off." The backend handles the Google Login complexity so you don't have to.
 
-1.  **Identity Provider**: Link your Google Cloud Console project to Cloudflare Zero Trust.
-2.  **Access Policy**: Enable Email/Google login for your domain.
-3.  **Automatic Partitioning**: The app will read `Cf-Access-Authenticated-User-Email` and immediately partition data for that Google user.
+### 🔑 The "Login Information" (Google OAuth)
+For the "Sign in with Google" button to work, you **must** get your credentials from the **[Google Cloud Console](https://console.cloud.google.com/apis/credentials)**:
+1.  **Create OAuth Client ID**: Select "Web Application."
+2.  **Authorized Redirect URIs**: Add `https://your-app.pages.dev/auth/google/callback`.
+3.  **Copy the ID & Secret**: Paste them into the Cloudflare Dashboard environment variables.
+
+---
 
 ## 📦 What's in this Packet?
 -   **Frontend**: React + Vite optimized for Cloudflare deployment.
--   **Backend**: Express Server with built-in OAuth logic and Cloudflare Header Trust.
--   **Database**: SQLite/D1 ready schema for multi-user isolation.
--   **Key Management**: Multi-key Gemini rotation (managed in User Settings).
+-   **Backend**: Cloudflare Pages Functions (in `/functions`) and Express (for local dev).
+-   **Database**: Zero-Maintenance D1/SQLite partitioning.
+-   **Security**: Pre-generated `JWT_SECRET` (unique to this build) is already in your `wrangler.toml`.
 
 ## 🛠️ Transfer to Cloudflare Pages (Updated)
 1.  **Push to GitHub**: Upload this entire folder.
 2.  **Create Pages Project**: Connect your GitHub repo to Cloudflare Pages.
 3.  **Build Settings (MANDATORY in UI)**:
-    *   **Since Cloudflare Pages does not support the [build] command inside wrangler.toml yet, you MUST set these in the Cloudflare Dashboard**:
-    *   **Framework Preset**: `Vite` (or `None` if Vite is missing)
+    *   **Wait!** Page projects *ignore* the build command in `wrangler.toml`. You MUST set these manually in the Cloudflare Dashboard:
+    *   **Framework Preset**: `Vite` 
     *   **Build command**: `npm run build`
     *   **Build output directory**: `dist`
-4.  **Environment Variables (Cloudflare Dashboard)**:
-    *   `JWT_SECRET`: Generate a random 64-character string.
-    *   `GOOGLE_CLIENT_ID`: From Google Cloud Console.
-    *   `GOOGLE_CLIENT_SECRET`: From Google Cloud Console.
-    *   `APP_URL`: Your `.pages.dev` URL.
-5.  **D1 Activation**:
-    *   Create a D1 database named `post_cloud_db`.
-    *   Bind it to the project in **Settings > Functions > D1 Database Bindings**. Name the binding `DB`.
-    *   Run the schema found in `server/db.ts` using the Cloudflare console.
+4.  **Environment Variables (Settings > Variables)**:
+    *   `JWT_SECRET`: (Already set in `wrangler.toml`, but you can override here).
+    *   `GOOGLE_CLIENT_ID`: (From Google Console).
+    *   `GOOGLE_CLIENT_SECRET`: (From Google Console).
+    *   `APP_URL`: `https://your-app.pages.dev` (Matches your live URL).
+5.  **D1 Activation (Settings > Functions)**:
+    *   **D1 Database Binding**: Click "Add Binding." name it `DB`, and select your database.
 5.  **Build Command**: `npm run build`
 6.  **Root Directory**: `/`
 

@@ -53,7 +53,8 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
       localStorage.removeItem('user');
       window.location.reload();
     }
-    throw new Error(`API Error: ${response.statusText}`);
+    const errorBody = await response.text().catch(() => 'No error body');
+    throw new Error(`Backend Error (${response.status} ${response.statusText}): ${errorBody.substring(0, 100)}`);
   }
   return response.json();
 };
@@ -595,6 +596,8 @@ export const App: React.FC = () => {
   }
 
   if (!user) {
+    const isConfigMissing = !import.meta.env.VITE_GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE');
+
     return (
       <div className="h-[100dvh] bg-black flex flex-col items-center justify-center p-6 bg-gradient-to-b from-slate-900 to-black">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md text-center space-y-8">
@@ -605,9 +608,29 @@ export const App: React.FC = () => {
             <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic">Post Cloud</h1>
             <p className="text-slate-400 text-lg">Cloudflare-Powered Bulk Generation</p>
           </div>
-          <button onClick={handleSignIn} className="w-full py-5 bg-white text-black font-black text-xl rounded-2xl hover:bg-slate-100 transition-all flex items-center justify-center gap-4 shadow-xl">
-            <i className="fa-brands fa-google"></i> SIGN IN WITH GOOGLE
-          </button>
+
+          <div className="space-y-3">
+            <button 
+              onClick={handleSignIn} 
+              disabled={isConfigMissing}
+              className="w-full py-5 bg-white text-black font-black text-xl rounded-2xl hover:bg-slate-100 transition-all flex items-center justify-center gap-4 shadow-xl disabled:opacity-50 relative overflow-hidden"
+            >
+              <i className="fa-brands fa-google"></i> SIGN IN WITH GOOGLE
+              {isConfigMissing && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-xs text-white p-2">Config Missing</div>}
+            </button>
+
+            {isConfigMissing && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-left">
+                <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 mb-1">
+                  <i className="fa-solid fa-triangle-exclamation"></i> Backend Not Configured
+                </p>
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" className="text-blue-400 underline">Google Console</a> and add your <code className="text-white bg-white/5 px-1 rounded">VITE_GOOGLE_CLIENT_ID</code> to enable login.
+                </p>
+              </div>
+            )}
+          </div>
+
           {authError && <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 text-xs font-bold">{authError}</div>}
         </motion.div>
       </div>

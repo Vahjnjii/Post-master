@@ -25,8 +25,10 @@ async function startServer() {
 
   // --- GOOGLE OAUTH ROUTES ---
   app.get('/api/auth/google/url', (req, res) => {
-    if (!GOOGLE_CLIENT_ID) {
-      return res.status(500).json({ error: 'GOOGLE_CLIENT_ID not configured' });
+    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE')) {
+      return res.status(500).json({ 
+        error: 'GOOGLE_CLIENT_ID is not configured. Get it from https://console.cloud.google.com/apis/credentials and add it to your environment variables.' 
+      });
     }
     const redirectUri = `${APP_URL}/auth/google/callback`;
     const authorizeUrl = client.generateAuthUrl({

@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // For production hardening, we enforce email verification
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Domain Validators
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.email is string && data.email.size() > 0 && data.email.size() < 256 &&
+             (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() < 256)) &&
+             (!('photoURL' in data) || data.photoURL == null || (data.photoURL is string && data.photoURL.size() < 2048));
+    }
+
+    function isValidChat(data) {
+      return data.keys().hasAll(['title', 'createdAt']) &&
+             (data.keys().size() == 2 || (data.keys().size() == 3 && data.keys().hasAll(['stats']))) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.createdAt == request.time &&
+             (!('stats' in data) || (
+               data.stats is map &&
+               data.stats.keys().hasAll(['date', 'shared', 'downloaded']) &&
+               data.stats.date is string &&
+               data.stats.shared is number &&
+               data.stats.downloaded is number
+             ));
+    }
+
+    function isValidMessage(data, userId) {
+      return data.keys().hasAll(['userId', 'chatId', 'role', 'content', 'timestamp']) &&
+             (data.keys().size() == 5 || (data.keys().size() == 6 && data.keys().hasAll(['postPlaceholders']))) &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.role in ['user', 'assistant'] &&
+             data.chatId is string && isValidId(data.chatId) &&
+             data.content is string && data.content.size() <= 100000 &&
+             data.timestamp == request.time;
+    }
+
+    function isValidPost(data, userId) {
+      return data.keys().hasAll(['userId', 'chatId', 'messageId', 'title', 'content', 'hashtags', 'languageName', 'imageData', 'createdAt']) &&
+             (data.keys().size() == 9 || (data.keys().size() == 10 && data.keys().hasAll(['interacted']))) &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.chatId is string && isValidId(data.chatId) &&
+             data.messageId is string && isValidId(data.messageId) &&
+             data.title is string && data.title.size() <= 500 &&
+             data.content is list && data.content.size() <= 20 &&
+             data.hashtags is list && data.hashtags.size() <= 10 &&
+             data.languageName is string && data.languageName.size() <= 100 &&
+             data.imageData is string && data.imageData.size() <= 4000000 &&
+             data.createdAt == request.time &&
+             (!('interacted' in data) || data.interacted is bool);
+    }
+
+    // Match User Profiles
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming()) && incoming().createdAt == request.time;
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().uid == existing().uid && 
+                    // Support preserving or updating createdAt if absolutely needed, 
+                    // but we usually just want to make sure it exists.
+                    (incoming().createdAt == existing().createdAt || incoming().createdAt == request.time);
+    }
+
+    // Match Chats
+    match /users/{userId}/chats/{chatId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isVerified() && isValidChat(incoming());
+      allow update: if isOwner(userId) && isVerified() && (
+        (incoming().diff(existing()).affectedKeys().hasOnly(['title']) && incoming().title is string) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['stats']) && incoming().stats is map)
+      );
+      allow delete: if isOwner(userId) && isVerified();
+    }
+
+    // Match Messages
+    match /users/{userId}/messages/{messageId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isVerified() && isValidMessage(incoming(), userId);
+      allow delete: if isOwner(userId) && isVerified(); 
+    }
+
+    // Match Posts
+    match /users/{userId}/posts/{postId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isVerified() && isValidPost(incoming(), userId);
+      allow update: if isOwner(userId) && isVerified() && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['interacted']) && incoming().interacted is bool
+      );
+      allow delete: if isOwner(userId) && isVerified();
+    }
+  }
+}

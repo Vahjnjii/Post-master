@@ -1,0 +1,80 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "A message in the chat conversation",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "postId": { "type": "string", "description": "Optional reference to a generated post" }
+      },
+      "required": ["userId", "role", "content", "timestamp"]
+    },
+    "GeneratedPost": {
+      "title": "GeneratedPost",
+      "description": "A generated 9:16 post for social media",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "messageId": { "type": "string", "description": "The chat message ID this post belongs to" },
+        "title": { "type": "string" },
+        "content": { "type": "array", "items": { "type": "string" } },
+        "hashtags": { "type": "array", "items": { "type": "string" } },
+        "languageName": { "type": "string" },
+        "imageData": { "type": "string", "description": "Base64 encoded JPEG data" },
+        "interacted": { "type": "boolean", "description": "Whether the user has interacted (save/share/copy) with this post" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "messageId", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/chats/{chatId}": {
+      "schema": {
+        "title": "Chat",
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string" },
+              "shared": { "type": "number" },
+              "downloaded": { "type": "number" }
+            }
+          }
+        }
+      },
+      "description": "User chat sessions"
+    },
+    "/users/{userId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Chat messages for specific user"
+    },
+    "/users/{userId}/posts/{postId}": {
+      "schema": "GeneratedPost",
+      "description": "The generated post images and data"
+    }
+  }
+}

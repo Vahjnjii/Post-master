@@ -634,13 +634,27 @@ export const App: React.FC = () => {
             </button>
 
             {isConfigMissing && (
-              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-left">
-                <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 mb-1">
-                  <i className="fa-solid fa-triangle-exclamation"></i> Backend Not Configured
-                </p>
-                <p className="text-slate-400 text-[11px] leading-relaxed">
-                  Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" className="text-blue-400 underline">Google Console</a> and add your <code className="text-white bg-white/5 px-1 rounded">VITE_GOOGLE_CLIENT_ID</code> to enable login.
-                </p>
+              <div className="space-y-3">
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-left">
+                  <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 mb-1">
+                    <i className="fa-solid fa-triangle-exclamation"></i> Backend Not Configured
+                  </p>
+                  <p className="text-slate-400 text-[11px] leading-relaxed">
+                    Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" className="text-blue-400 underline">Google Console</a> and add your <code className="text-white bg-white/5 px-1 rounded">VITE_GOOGLE_CLIENT_ID</code> to enable login.
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={() => {
+                    const mockUser = { uid: 'dev_user', email: 'dev@preview.io', displayName: 'Preview User' };
+                    localStorage.setItem('user', JSON.stringify(mockUser));
+                    localStorage.setItem('token', 'mock_token');
+                    setUser(mockUser);
+                  }}
+                  className="w-full py-3 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-500/20 transition-all"
+                >
+                  Skip for Preview UI →
+                </button>
               </div>
             )}
           </div>
